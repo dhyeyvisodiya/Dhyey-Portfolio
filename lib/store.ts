@@ -83,12 +83,12 @@ interface Store {
   resume: Resume | null
   isLoading: boolean
   lastUpdated: number
-  isInitialized: boolean
+  error: string | null
 
   // Data fetching
   fetchData: () => Promise<void>
   refreshData: () => Promise<void>
-  initializeStore: () => void
+  clearError: () => void
 
   // Resume
   updateResume: (resume: Partial<Resume>) => Promise<void>
@@ -151,19 +151,13 @@ export const useStore = create<Store>()(
       resume: null,
       isLoading: false,
       lastUpdated: 0,
-      isInitialized: false,
+      error: null,
 
-      // Initialize store
-      initializeStore: () => {
-        if (!get().isInitialized) {
-          set({ isInitialized: true })
-          get().fetchData()
-        }
-      },
+      clearError: () => set({ error: null }),
 
       // Data fetching with proper error handling
       fetchData: async () => {
-        set({ isLoading: true })
+        set({ isLoading: true, error: null })
         try {
           const [projectsRes, skillsRes, certificatesRes, blogsRes, experiencesRes, resumeRes] = await Promise.all([
             supabase.from("projects").select("*").order("created_at", { ascending: false }),
@@ -174,6 +168,13 @@ export const useStore = create<Store>()(
             supabase.from("resume").select("*").single(),
           ])
 
+          // Check for errors
+          if (projectsRes.error) throw projectsRes.error
+          if (skillsRes.error) throw skillsRes.error
+          if (certificatesRes.error) throw certificatesRes.error
+          if (blogsRes.error) throw blogsRes.error
+          if (experiencesRes.error) throw experiencesRes.error
+
           set({
             projects: transformData(projectsRes.data || [], "projects"),
             skills: transformData(skillsRes.data || [], "skills"),
@@ -182,9 +183,10 @@ export const useStore = create<Store>()(
             experiences: transformData(experiencesRes.data || [], "experiences"),
             resume: resumeRes.data ? transformData([resumeRes.data], "resume")[0] : null,
             lastUpdated: Date.now(),
+            error: null,
           })
-        } catch (error) {
-          // Silent error handling - data will be empty if database fails
+        } catch (error: any) {
+          set({ error: error.message || "Failed to fetch data" })
         } finally {
           set({ isLoading: false })
         }
@@ -197,6 +199,7 @@ export const useStore = create<Store>()(
 
       // Resume
       updateResume: async (resumeData) => {
+        set({ isLoading: true, error: null })
         try {
           const dataToInsert = {
             personal_info: resumeData.personalInfo,
@@ -206,113 +209,141 @@ export const useStore = create<Store>()(
 
           const { data, error } = await supabase.from("resume").upsert([dataToInsert]).select().single()
 
-          if (!error && data) {
-            const transformedData = transformData([data], "resume")[0]
-            set({ resume: transformedData, lastUpdated: Date.now() })
-          }
-        } catch (error) {
+          if (error) throw error
+
+          const transformedData = transformData([data], "resume")[0]
+          set({ resume: transformedData, lastUpdated: Date.now() })
+        } catch (error: any) {
+          set({ error: error.message || "Failed to update resume" })
           throw error
+        } finally {
+          set({ isLoading: false })
         }
       },
 
       // Projects
       addProject: async (project) => {
+        set({ isLoading: true, error: null })
         try {
           const { data, error } = await supabase.from("projects").insert([project]).select()
 
-          if (!error && data) {
-            const transformedData = transformData(data, "projects")
-            set((state) => ({
-              projects: [transformedData[0], ...state.projects],
-              lastUpdated: Date.now(),
-            }))
-          }
-        } catch (error) {
+          if (error) throw error
+
+          const transformedData = transformData(data, "projects")
+          set((state) => ({
+            projects: [transformedData[0], ...state.projects],
+            lastUpdated: Date.now(),
+          }))
+        } catch (error: any) {
+          set({ error: error.message || "Failed to add project" })
           throw error
+        } finally {
+          set({ isLoading: false })
         }
       },
 
       updateProject: async (id, project) => {
+        set({ isLoading: true, error: null })
         try {
           const { data, error } = await supabase.from("projects").update(project).eq("id", id).select()
 
-          if (!error && data) {
-            const transformedData = transformData(data, "projects")
-            set((state) => ({
-              projects: state.projects.map((p) => (p.id === id ? transformedData[0] : p)),
-              lastUpdated: Date.now(),
-            }))
-          }
-        } catch (error) {
+          if (error) throw error
+
+          const transformedData = transformData(data, "projects")
+          set((state) => ({
+            projects: state.projects.map((p) => (p.id === id ? transformedData[0] : p)),
+            lastUpdated: Date.now(),
+          }))
+        } catch (error: any) {
+          set({ error: error.message || "Failed to update project" })
           throw error
+        } finally {
+          set({ isLoading: false })
         }
       },
 
       deleteProject: async (id) => {
+        set({ isLoading: true, error: null })
         try {
           const { error } = await supabase.from("projects").delete().eq("id", id)
 
-          if (!error) {
-            set((state) => ({
-              projects: state.projects.filter((p) => p.id !== id),
-              lastUpdated: Date.now(),
-            }))
-          }
-        } catch (error) {
+          if (error) throw error
+
+          set((state) => ({
+            projects: state.projects.filter((p) => p.id !== id),
+            lastUpdated: Date.now(),
+          }))
+        } catch (error: any) {
+          set({ error: error.message || "Failed to delete project" })
           throw error
+        } finally {
+          set({ isLoading: false })
         }
       },
 
       // Skills
       addSkill: async (skill) => {
+        set({ isLoading: true, error: null })
         try {
           const { data, error } = await supabase.from("skills").insert([skill]).select()
 
-          if (!error && data) {
-            const transformedData = transformData(data, "skills")
-            set((state) => ({
-              skills: [transformedData[0], ...state.skills],
-              lastUpdated: Date.now(),
-            }))
-          }
-        } catch (error) {
+          if (error) throw error
+
+          const transformedData = transformData(data, "skills")
+          set((state) => ({
+            skills: [transformedData[0], ...state.skills],
+            lastUpdated: Date.now(),
+          }))
+        } catch (error: any) {
+          set({ error: error.message || "Failed to add skill" })
           throw error
+        } finally {
+          set({ isLoading: false })
         }
       },
 
       updateSkill: async (id, skill) => {
+        set({ isLoading: true, error: null })
         try {
           const { data, error } = await supabase.from("skills").update(skill).eq("id", id).select()
 
-          if (!error && data) {
-            const transformedData = transformData(data, "skills")
-            set((state) => ({
-              skills: state.skills.map((s) => (s.id === id ? transformedData[0] : s)),
-              lastUpdated: Date.now(),
-            }))
-          }
-        } catch (error) {
+          if (error) throw error
+
+          const transformedData = transformData(data, "skills")
+          set((state) => ({
+            skills: state.skills.map((s) => (s.id === id ? transformedData[0] : s)),
+            lastUpdated: Date.now(),
+          }))
+        } catch (error: any) {
+          set({ error: error.message || "Failed to update skill" })
           throw error
+        } finally {
+          set({ isLoading: false })
         }
       },
 
       deleteSkill: async (id) => {
+        set({ isLoading: true, error: null })
         try {
           const { error } = await supabase.from("skills").delete().eq("id", id)
 
-          if (!error) {
-            set((state) => ({
-              skills: state.skills.filter((s) => s.id !== id),
-              lastUpdated: Date.now(),
-            }))
-          }
-        } catch (error) {
+          if (error) throw error
+
+          set((state) => ({
+            skills: state.skills.filter((s) => s.id !== id),
+            lastUpdated: Date.now(),
+          }))
+        } catch (error: any) {
+          set({ error: error.message || "Failed to delete skill" })
           throw error
+        } finally {
+          set({ isLoading: false })
         }
       },
 
       // Certificates
       addCertificate: async (certificate) => {
+        set({ isLoading: true, error: null })
         try {
           const dataToInsert = {
             ...certificate,
@@ -322,19 +353,23 @@ export const useStore = create<Store>()(
 
           const { data, error } = await supabase.from("certificates").insert([dataToInsert]).select()
 
-          if (!error && data) {
-            const transformedData = transformData(data, "certificates")
-            set((state) => ({
-              certificates: [transformedData[0], ...state.certificates],
-              lastUpdated: Date.now(),
-            }))
-          }
-        } catch (error) {
+          if (error) throw error
+
+          const transformedData = transformData(data, "certificates")
+          set((state) => ({
+            certificates: [transformedData[0], ...state.certificates],
+            lastUpdated: Date.now(),
+          }))
+        } catch (error: any) {
+          set({ error: error.message || "Failed to add certificate" })
           throw error
+        } finally {
+          set({ isLoading: false })
         }
       },
 
       updateCertificate: async (id, certificate) => {
+        set({ isLoading: true, error: null })
         try {
           const dataToUpdate = {
             ...certificate,
@@ -344,35 +379,43 @@ export const useStore = create<Store>()(
 
           const { data, error } = await supabase.from("certificates").update(dataToUpdate).eq("id", id).select()
 
-          if (!error && data) {
-            const transformedData = transformData(data, "certificates")
-            set((state) => ({
-              certificates: state.certificates.map((c) => (c.id === id ? transformedData[0] : c)),
-              lastUpdated: Date.now(),
-            }))
-          }
-        } catch (error) {
+          if (error) throw error
+
+          const transformedData = transformData(data, "certificates")
+          set((state) => ({
+            certificates: state.certificates.map((c) => (c.id === id ? transformedData[0] : c)),
+            lastUpdated: Date.now(),
+          }))
+        } catch (error: any) {
+          set({ error: error.message || "Failed to update certificate" })
           throw error
+        } finally {
+          set({ isLoading: false })
         }
       },
 
       deleteCertificate: async (id) => {
+        set({ isLoading: true, error: null })
         try {
           const { error } = await supabase.from("certificates").delete().eq("id", id)
 
-          if (!error) {
-            set((state) => ({
-              certificates: state.certificates.filter((c) => c.id !== id),
-              lastUpdated: Date.now(),
-            }))
-          }
-        } catch (error) {
+          if (error) throw error
+
+          set((state) => ({
+            certificates: state.certificates.filter((c) => c.id !== id),
+            lastUpdated: Date.now(),
+          }))
+        } catch (error: any) {
+          set({ error: error.message || "Failed to delete certificate" })
           throw error
+        } finally {
+          set({ isLoading: false })
         }
       },
 
       // Blogs
       addBlog: async (blog) => {
+        set({ isLoading: true, error: null })
         try {
           const dataToInsert = {
             ...blog,
@@ -381,19 +424,23 @@ export const useStore = create<Store>()(
 
           const { data, error } = await supabase.from("blogs").insert([dataToInsert]).select()
 
-          if (!error && data) {
-            const transformedData = transformData(data, "blogs")
-            set((state) => ({
-              blogs: [transformedData[0], ...state.blogs],
-              lastUpdated: Date.now(),
-            }))
-          }
-        } catch (error) {
+          if (error) throw error
+
+          const transformedData = transformData(data, "blogs")
+          set((state) => ({
+            blogs: [transformedData[0], ...state.blogs],
+            lastUpdated: Date.now(),
+          }))
+        } catch (error: any) {
+          set({ error: error.message || "Failed to add blog" })
           throw error
+        } finally {
+          set({ isLoading: false })
         }
       },
 
       updateBlog: async (id, blog) => {
+        set({ isLoading: true, error: null })
         try {
           const dataToUpdate = {
             ...blog,
@@ -402,78 +449,97 @@ export const useStore = create<Store>()(
 
           const { data, error } = await supabase.from("blogs").update(dataToUpdate).eq("id", id).select()
 
-          if (!error && data) {
-            const transformedData = transformData(data, "blogs")
-            set((state) => ({
-              blogs: state.blogs.map((b) => (b.id === id ? transformedData[0] : b)),
-              lastUpdated: Date.now(),
-            }))
-          }
-        } catch (error) {
+          if (error) throw error
+
+          const transformedData = transformData(data, "blogs")
+          set((state) => ({
+            blogs: state.blogs.map((b) => (b.id === id ? transformedData[0] : b)),
+            lastUpdated: Date.now(),
+          }))
+        } catch (error: any) {
+          set({ error: error.message || "Failed to update blog" })
           throw error
+        } finally {
+          set({ isLoading: false })
         }
       },
 
       deleteBlog: async (id) => {
+        set({ isLoading: true, error: null })
         try {
           const { error } = await supabase.from("blogs").delete().eq("id", id)
 
-          if (!error) {
-            set((state) => ({
-              blogs: state.blogs.filter((b) => b.id !== id),
-              lastUpdated: Date.now(),
-            }))
-          }
-        } catch (error) {
+          if (error) throw error
+
+          set((state) => ({
+            blogs: state.blogs.filter((b) => b.id !== id),
+            lastUpdated: Date.now(),
+          }))
+        } catch (error: any) {
+          set({ error: error.message || "Failed to delete blog" })
           throw error
+        } finally {
+          set({ isLoading: false })
         }
       },
 
       // Experiences
       addExperience: async (experience) => {
+        set({ isLoading: true, error: null })
         try {
           const { data, error } = await supabase.from("experiences").insert([experience]).select()
 
-          if (!error && data) {
-            const transformedData = transformData(data, "experiences")
-            set((state) => ({
-              experiences: [transformedData[0], ...state.experiences],
-              lastUpdated: Date.now(),
-            }))
-          }
-        } catch (error) {
+          if (error) throw error
+
+          const transformedData = transformData(data, "experiences")
+          set((state) => ({
+            experiences: [transformedData[0], ...state.experiences],
+            lastUpdated: Date.now(),
+          }))
+        } catch (error: any) {
+          set({ error: error.message || "Failed to add experience" })
           throw error
+        } finally {
+          set({ isLoading: false })
         }
       },
 
       updateExperience: async (id, experience) => {
+        set({ isLoading: true, error: null })
         try {
           const { data, error } = await supabase.from("experiences").update(experience).eq("id", id).select()
 
-          if (!error && data) {
-            const transformedData = transformData(data, "experiences")
-            set((state) => ({
-              experiences: state.experiences.map((e) => (e.id === id ? transformedData[0] : e)),
-              lastUpdated: Date.now(),
-            }))
-          }
-        } catch (error) {
+          if (error) throw error
+
+          const transformedData = transformData(data, "experiences")
+          set((state) => ({
+            experiences: state.experiences.map((e) => (e.id === id ? transformedData[0] : e)),
+            lastUpdated: Date.now(),
+          }))
+        } catch (error: any) {
+          set({ error: error.message || "Failed to update experience" })
           throw error
+        } finally {
+          set({ isLoading: false })
         }
       },
 
       deleteExperience: async (id) => {
+        set({ isLoading: true, error: null })
         try {
           const { error } = await supabase.from("experiences").delete().eq("id", id)
 
-          if (!error) {
-            set((state) => ({
-              experiences: state.experiences.filter((e) => e.id !== id),
-              lastUpdated: Date.now(),
-            }))
-          }
-        } catch (error) {
+          if (error) throw error
+
+          set((state) => ({
+            experiences: state.experiences.filter((e) => e.id !== id),
+            lastUpdated: Date.now(),
+          }))
+        } catch (error: any) {
+          set({ error: error.message || "Failed to delete experience" })
           throw error
+        } finally {
+          set({ isLoading: false })
         }
       },
     }),
@@ -487,7 +553,6 @@ export const useStore = create<Store>()(
         experiences: state.experiences,
         resume: state.resume,
         lastUpdated: state.lastUpdated,
-        isInitialized: state.isInitialized,
       }),
     },
   ),

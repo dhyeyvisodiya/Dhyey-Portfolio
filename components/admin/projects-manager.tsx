@@ -14,10 +14,9 @@ import { Plus, Edit, Trash2, Save, X } from "lucide-react"
 import { useStore, type Project } from "@/lib/store"
 
 export function ProjectsManager() {
-  const { projects, addProject, updateProject, deleteProject } = useStore()
+  const { projects, addProject, updateProject, deleteProject, isLoading, error } = useStore()
   const [isEditing, setIsEditing] = useState<string | null>(null)
   const [isAdding, setIsAdding] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState<Partial<Project>>({
     title: "",
     description: "",
@@ -30,7 +29,6 @@ export function ProjectsManager() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
 
     try {
       if (isEditing) {
@@ -41,27 +39,17 @@ export function ProjectsManager() {
         setIsAdding(false)
       }
       resetForm()
-      // Force refresh to ensure UI sync
-      await fetchData()
     } catch (error) {
-      // Show error to user
-      alert("Error saving project. Please try again.")
-    } finally {
-      setIsLoading(false)
+      // Error is handled by the store
     }
   }
 
   const handleDelete = async (id: string) => {
     if (window.confirm("Are you sure you want to delete this project?")) {
-      setIsLoading(true)
       try {
         await deleteProject(id)
-        // Force refresh to ensure UI sync
-        await fetchData()
       } catch (error) {
-        alert("Error deleting project. Please try again.")
-      } finally {
-        setIsLoading(false)
+        // Error is handled by the store
       }
     }
   }
@@ -98,15 +86,6 @@ export function ProjectsManager() {
     setFormData({ ...formData, technologies })
   }
 
-  const fetchData = async () => {
-    // This is a placeholder. Replace with your actual data fetching logic.
-    // For example, if you're using the store's `fetchProjects` method:
-    // await fetchProjects();
-    // Since we don't have access to the actual fetching logic, we'll just
-    // simulate a delay to represent fetching data.
-    return new Promise((resolve) => setTimeout(resolve, 500))
-  }
-
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center fade-in-up">
@@ -116,7 +95,7 @@ export function ProjectsManager() {
         </div>
         <Button
           onClick={() => setIsAdding(true)}
-          className="gradient-bg text-white hover:scale-105 transition-transform duration-300"
+          className="gradient-bg text-white hover:scale-105 transition-transform duration-300 btn-advanced"
           disabled={isLoading}
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -126,7 +105,7 @@ export function ProjectsManager() {
 
       {/* Add/Edit Form */}
       {(isAdding || isEditing) && (
-        <Card className="bg-gray-800/50 border-gray-700 fade-in-up">
+        <Card className="bg-gray-800/50 border-gray-700 fade-in-up card-hover backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="text-white">{isEditing ? "Edit Project" : "Add New Project"}</CardTitle>
           </CardHeader>
@@ -141,7 +120,7 @@ export function ProjectsManager() {
                     id="title"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    className="bg-gray-700 border-gray-600 text-white"
+                    className="bg-gray-700/50 border-gray-600 text-white backdrop-blur-sm transition-all duration-300 focus:bg-gray-700 focus:border-red-500"
                     required
                   />
                 </div>
@@ -153,7 +132,7 @@ export function ProjectsManager() {
                     id="image"
                     value={formData.image}
                     onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                    className="bg-gray-700 border-gray-600 text-white"
+                    className="bg-gray-700/50 border-gray-600 text-white backdrop-blur-sm transition-all duration-300 focus:bg-gray-700 focus:border-blue-500"
                   />
                 </div>
               </div>
@@ -166,7 +145,7 @@ export function ProjectsManager() {
                   id="description"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="bg-gray-700 border-gray-600 text-white"
+                  className="bg-gray-700/50 border-gray-600 text-white backdrop-blur-sm transition-all duration-300 focus:bg-gray-700 focus:border-purple-500"
                   rows={3}
                   required
                 />
@@ -180,7 +159,7 @@ export function ProjectsManager() {
                   id="technologies"
                   value={formData.technologies?.join(", ")}
                   onChange={(e) => handleTechnologiesChange(e.target.value)}
-                  className="bg-gray-700 border-gray-600 text-white"
+                  className="bg-gray-700/50 border-gray-600 text-white backdrop-blur-sm transition-all duration-300 focus:bg-gray-700 focus:border-green-500"
                   placeholder="React, Next.js, TypeScript"
                 />
               </div>
@@ -194,7 +173,7 @@ export function ProjectsManager() {
                     id="github"
                     value={formData.github}
                     onChange={(e) => setFormData({ ...formData, github: e.target.value })}
-                    className="bg-gray-700 border-gray-600 text-white"
+                    className="bg-gray-700/50 border-gray-600 text-white backdrop-blur-sm transition-all duration-300 focus:bg-gray-700"
                   />
                 </div>
                 <div>
@@ -205,7 +184,7 @@ export function ProjectsManager() {
                     id="demo"
                     value={formData.demo}
                     onChange={(e) => setFormData({ ...formData, demo: e.target.value })}
-                    className="bg-gray-700 border-gray-600 text-white"
+                    className="bg-gray-700/50 border-gray-600 text-white backdrop-blur-sm transition-all duration-300 focus:bg-gray-700"
                   />
                 </div>
               </div>
@@ -222,7 +201,7 @@ export function ProjectsManager() {
               </div>
 
               <div className="flex gap-2">
-                <Button type="submit" className="gradient-bg text-white" disabled={isLoading}>
+                <Button type="submit" className="gradient-bg text-white btn-advanced" disabled={isLoading}>
                   <Save className="h-4 w-4 mr-2" />
                   {isLoading ? "Saving..." : isEditing ? "Update" : "Add"} Project
                 </Button>
@@ -230,7 +209,7 @@ export function ProjectsManager() {
                   type="button"
                   variant="outline"
                   onClick={handleCancel}
-                  className="border-gray-600 text-gray-300 bg-transparent"
+                  className="border-gray-600 text-gray-300 bg-transparent hover:bg-gray-700 btn-advanced"
                   disabled={isLoading}
                 >
                   <X className="h-4 w-4 mr-2" />
@@ -245,11 +224,11 @@ export function ProjectsManager() {
       {/* Projects List */}
       <div className="grid gap-6">
         {projects.length === 0 ? (
-          <Card className="bg-gray-800/50 border-gray-700">
+          <Card className="bg-gray-800/50 border-gray-700 card-hover backdrop-blur-sm">
             <CardContent className="text-center py-12">
               <h3 className="text-xl font-semibold text-gray-400 mb-2">No projects yet</h3>
               <p className="text-gray-500 mb-4">Add your first project to get started</p>
-              <Button onClick={() => setIsAdding(true)} className="gradient-bg text-white">
+              <Button onClick={() => setIsAdding(true)} className="gradient-bg text-white btn-advanced">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Your First Project
               </Button>
@@ -259,7 +238,7 @@ export function ProjectsManager() {
           projects.map((project, index) => (
             <Card
               key={project.id}
-              className={`bg-gray-800/50 border-gray-700 card-hover fade-in-up stagger-${index + 1}`}
+              className={`bg-gray-800/50 border-gray-700 card-hover backdrop-blur-sm fade-in-up stagger-${(index % 6) + 1}`}
             >
               <CardHeader>
                 <div className="flex justify-between items-start">
@@ -267,7 +246,7 @@ export function ProjectsManager() {
                     <CardTitle className="text-white flex items-center gap-2">
                       {project.title}
                       {project.featured && (
-                        <Badge className="bg-red-600/20 text-red-400 border-red-600/30">Featured</Badge>
+                        <Badge className="bg-red-600/20 text-red-400 border-red-600/30 animate-pulse">Featured</Badge>
                       )}
                     </CardTitle>
                     <CardDescription className="text-gray-400 mt-2">{project.description}</CardDescription>
@@ -277,7 +256,7 @@ export function ProjectsManager() {
                       size="sm"
                       variant="outline"
                       onClick={() => handleEdit(project)}
-                      className="border-gray-600 text-gray-300 bg-transparent hover:bg-blue-500/10 hover:border-blue-500"
+                      className="border-gray-600 text-gray-300 bg-transparent hover:bg-blue-500/10 hover:border-blue-500 btn-advanced"
                       disabled={isLoading}
                     >
                       <Edit className="h-4 w-4" />
@@ -286,7 +265,7 @@ export function ProjectsManager() {
                       size="sm"
                       variant="outline"
                       onClick={() => handleDelete(project.id)}
-                      className="border-gray-600 text-gray-300 bg-transparent hover:bg-red-500/10 hover:border-red-500"
+                      className="border-gray-600 text-gray-300 bg-transparent hover:bg-red-500/10 hover:border-red-500 btn-advanced"
                       disabled={isLoading}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -297,7 +276,10 @@ export function ProjectsManager() {
               <CardContent>
                 <div className="flex flex-wrap gap-2 mb-4">
                   {project.technologies.map((tech, techIndex) => (
-                    <Badge key={techIndex} className="bg-blue-600/20 text-blue-400 border-blue-600/30">
+                    <Badge
+                      key={techIndex}
+                      className="bg-blue-600/20 text-blue-400 border-blue-600/30 hover:bg-blue-600/30 transition-colors"
+                    >
                       {tech}
                     </Badge>
                   ))}
