@@ -42,9 +42,10 @@ export function BlogsManager() {
         setIsAdding(false)
       }
       resetForm()
+      // Force refresh to ensure UI sync
       await fetchData()
     } catch (error) {
-      // Error handled silently
+      alert("Error saving blog post. Please try again.")
     } finally {
       setIsLoading(false)
     }
@@ -102,9 +103,10 @@ export function BlogsManager() {
     if (window.confirm("Are you sure you want to delete this blog post?")) {
       try {
         await deleteBlog(id)
+        // Force refresh to ensure UI sync
         await fetchData()
       } catch (error) {
-        // Error handled silently
+        alert("Error deleting blog post. Please try again.")
       }
     }
   }

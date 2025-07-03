@@ -38,9 +38,10 @@ export function ExperienceManager() {
         setIsAdding(false)
       }
       resetForm()
+      // Force refresh to ensure UI sync
       await fetchData()
     } catch (error) {
-      // Error handled silently
+      alert("Error saving experience. Please try again.")
     } finally {
       setIsLoading(false)
     }
@@ -80,9 +81,10 @@ export function ExperienceManager() {
     if (window.confirm("Are you sure you want to delete this experience?")) {
       try {
         await deleteExperience(id)
+        // Force refresh to ensure UI sync
         await fetchData()
       } catch (error) {
-        // Error handled silently
+        alert("Error deleting experience. Please try again.")
       }
     }
   }

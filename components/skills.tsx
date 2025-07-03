@@ -4,16 +4,28 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useStore } from "@/lib/store"
 import { useScrollAnimation } from "@/hooks/use-scroll-animation"
+import { useEffect } from "react"
 
 export function Skills() {
-  const { skills } = useStore()
+  const { skills, fetchData } = useStore()
   const { ref, isVisible } = useScrollAnimation()
+
+  // Ensure we have fresh data
+  useEffect(() => {
+    if (skills.length === 0) {
+      fetchData()
+    }
+  }, [skills.length, fetchData])
 
   const skillCategories = [
     { title: "Frontend", color: "red", skills: skills.filter((s) => s.category === "Frontend") },
     { title: "Backend", color: "purple", skills: skills.filter((s) => s.category === "Backend") },
     { title: "Mobile", color: "blue", skills: skills.filter((s) => s.category === "Mobile") },
-    { title: "Tools & Cloud", color: "green", skills: skills.filter((s) => s.category === "Tools") },
+    {
+      title: "Tools & Cloud",
+      color: "green",
+      skills: skills.filter((s) => s.category === "Tools" || s.category === "Cloud"),
+    },
   ]
 
   const getColorClasses = (color: string) => {
@@ -37,36 +49,46 @@ export function Skills() {
         <div className={`text-center mb-16 ${isVisible ? "fade-in-up" : "scroll-animate"}`}>
           <h2 className="text-3xl sm:text-4xl font-bold mb-4 gradient-text">Skills & Technologies</h2>
           <p className="text-lg text-gray-400 max-w-2xl mx-auto">
-            Technologies and tools I use to bring ideas to life.
+            Technologies and tools I use to bring ideas to life. ({skills.length} total skills)
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {skillCategories.map((category, index) => (
-            <Card
-              key={index}
-              className={`bg-gray-800/50 border-gray-700 card-hover ${
-                isVisible ? `scale-in stagger-${index + 1}` : "scroll-animate"
-              }`}
-            >
-              <CardHeader>
-                <CardTitle className="text-white text-center">{category.title}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2 justify-center">
-                  {category.skills.map((skill, skillIndex) => (
-                    <Badge
-                      key={skill.id}
-                      className={`${getColorClasses(category.color)} transition-all duration-300 hover:scale-105 cursor-pointer`}
-                    >
-                      {skill.name}
-                    </Badge>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        {skills.length > 0 ? (
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {skillCategories.map((category, index) => (
+              <Card
+                key={index}
+                className={`bg-gray-800/50 border-gray-700 card-hover ${
+                  isVisible ? `scale-in stagger-${index + 1}` : "scroll-animate"
+                }`}
+              >
+                <CardHeader>
+                  <CardTitle className="text-white text-center">
+                    {category.title} ({category.skills.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    {category.skills.map((skill, skillIndex) => (
+                      <Badge
+                        key={skill.id}
+                        className={`${getColorClasses(category.color)} transition-all duration-300 hover:scale-105 cursor-pointer`}
+                        title={`${skill.name} - ${skill.level}%`}
+                      >
+                        {skill.name}
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-20">
+            <h3 className="text-2xl font-bold text-gray-400 mb-4">No skills added yet</h3>
+            <p className="text-gray-500">Skills will appear here once added through the admin panel.</p>
+          </div>
+        )}
       </div>
     </section>
   )

@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation"
 import { AdminNavigation } from "@/components/admin/admin-navigation"
 import { AdminDashboard } from "@/components/admin/admin-dashboard"
 import { useAuth } from "@/lib/auth"
+import { useStore } from "@/lib/store"
 import { useState } from "react"
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("dashboard")
   const { isAuthenticated } = useAuth()
+  const { initializeStore } = useStore()
   const router = useRouter()
 
   useEffect(() => {
@@ -17,6 +19,12 @@ export default function AdminPage() {
       router.push("/admin/login")
     }
   }, [isAuthenticated, router])
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      initializeStore()
+    }
+  }, [isAuthenticated, initializeStore])
 
   if (!isAuthenticated) {
     return null

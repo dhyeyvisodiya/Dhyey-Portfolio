@@ -38,9 +38,10 @@ export function SkillsManager() {
         setIsAdding(false)
       }
       resetForm()
+      // Force refresh to ensure UI sync
       await fetchData()
     } catch (error) {
-      // Error handled silently
+      alert("Error saving skill. Please try again.")
     } finally {
       setIsLoading(false)
     }
@@ -78,9 +79,10 @@ export function SkillsManager() {
     if (window.confirm("Are you sure you want to delete this skill?")) {
       try {
         await deleteSkill(id)
+        // Force refresh to ensure UI sync
         await fetchData()
       } catch (error) {
-        // Error handled silently
+        alert("Error deleting skill. Please try again.")
       }
     }
   }

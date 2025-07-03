@@ -38,9 +38,10 @@ export function CertificatesManager() {
         setIsAdding(false)
       }
       resetForm()
+      // Force refresh to ensure UI sync
       await fetchData()
     } catch (error) {
-      // Error handled silently
+      alert("Error saving certificate. Please try again.")
     } finally {
       setIsLoading(false)
     }
@@ -81,9 +82,10 @@ export function CertificatesManager() {
     if (window.confirm("Are you sure you want to delete this certificate?")) {
       try {
         await deleteCertificate(id)
+        // Force refresh to ensure UI sync
         await fetchData()
       } catch (error) {
-        // Error handled silently
+        alert("Error deleting certificate. Please try again.")
       }
     }
   }

@@ -13,11 +13,11 @@ import { Contact } from "@/components/contact"
 import { useStore } from "@/lib/store"
 
 export default function Home() {
-  const { fetchData } = useStore()
+  const { initializeStore } = useStore()
 
   useEffect(() => {
-    fetchData()
-  }, [fetchData])
+    initializeStore()
+  }, [initializeStore])
 
   return (
     <main className="min-h-screen bg-black relative">

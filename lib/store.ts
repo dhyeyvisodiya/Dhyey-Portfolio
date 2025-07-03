@@ -82,9 +82,13 @@ interface Store {
   experiences: Experience[]
   resume: Resume | null
   isLoading: boolean
+  lastUpdated: number
+  isInitialized: boolean
 
   // Data fetching
   fetchData: () => Promise<void>
+  refreshData: () => Promise<void>
+  initializeStore: () => void
 
   // Resume
   updateResume: (resume: Partial<Resume>) => Promise<void>
@@ -115,6 +119,27 @@ interface Store {
   deleteExperience: (id: string) => Promise<void>
 }
 
+// Helper function to transform database data
+const transformData = (data: any[], type: string) => {
+  return data.map((item) => ({
+    ...item,
+    id: item.id,
+    createdAt: item.created_at,
+    // Transform specific fields based on type
+    ...(type === "certificates" && {
+      credentialId: item.credential_id,
+      verifyUrl: item.verify_url,
+    }),
+    ...(type === "blogs" && {
+      readTime: item.read_time,
+    }),
+    ...(type === "resume" && {
+      personalInfo: item.personal_info,
+      resumeUrl: item.resume_url,
+    }),
+  }))
+}
+
 export const useStore = create<Store>()(
   persist(
     (set, get) => ({
@@ -125,8 +150,18 @@ export const useStore = create<Store>()(
       experiences: [],
       resume: null,
       isLoading: false,
+      lastUpdated: 0,
+      isInitialized: false,
 
-      // Data fetching
+      // Initialize store
+      initializeStore: () => {
+        if (!get().isInitialized) {
+          set({ isInitialized: true })
+          get().fetchData()
+        }
+      },
+
+      // Data fetching with proper error handling
       fetchData: async () => {
         set({ isLoading: true })
         try {
@@ -140,195 +175,320 @@ export const useStore = create<Store>()(
           ])
 
           set({
-            projects: projectsRes.data || [],
-            skills: skillsRes.data || [],
-            certificates: certificatesRes.data || [],
-            blogs: blogsRes.data || [],
-            experiences: experiencesRes.data || [],
-            resume: resumeRes.data || null,
+            projects: transformData(projectsRes.data || [], "projects"),
+            skills: transformData(skillsRes.data || [], "skills"),
+            certificates: transformData(certificatesRes.data || [], "certificates"),
+            blogs: transformData(blogsRes.data || [], "blogs"),
+            experiences: transformData(experiencesRes.data || [], "experiences"),
+            resume: resumeRes.data ? transformData([resumeRes.data], "resume")[0] : null,
+            lastUpdated: Date.now(),
           })
         } catch (error) {
-          // Error handled silently
+          // Silent error handling - data will be empty if database fails
         } finally {
           set({ isLoading: false })
         }
       },
 
+      // Force refresh data
+      refreshData: async () => {
+        await get().fetchData()
+      },
+
       // Resume
       updateResume: async (resumeData) => {
-        const { data, error } = await supabase
-          .from("resume")
-          .upsert([{ ...resumeData, created_at: new Date().toISOString() }])
-          .select()
-          .single()
+        try {
+          const dataToInsert = {
+            personal_info: resumeData.personalInfo,
+            summary: resumeData.summary,
+            resume_url: resumeData.resumeUrl,
+          }
 
-        if (!error && data) {
-          set({ resume: data })
+          const { data, error } = await supabase.from("resume").upsert([dataToInsert]).select().single()
+
+          if (!error && data) {
+            const transformedData = transformData([data], "resume")[0]
+            set({ resume: transformedData, lastUpdated: Date.now() })
+          }
+        } catch (error) {
+          throw error
         }
       },
 
       // Projects
       addProject: async (project) => {
-        const { data, error } = await supabase
-          .from("projects")
-          .insert([{ ...project, created_at: new Date().toISOString() }])
-          .select()
+        try {
+          const { data, error } = await supabase.from("projects").insert([project]).select()
 
-        if (!error && data) {
-          set((state) => ({ projects: [data[0], ...state.projects] }))
+          if (!error && data) {
+            const transformedData = transformData(data, "projects")
+            set((state) => ({
+              projects: [transformedData[0], ...state.projects],
+              lastUpdated: Date.now(),
+            }))
+          }
+        } catch (error) {
+          throw error
         }
       },
 
       updateProject: async (id, project) => {
-        const { data, error } = await supabase.from("projects").update(project).eq("id", id).select()
+        try {
+          const { data, error } = await supabase.from("projects").update(project).eq("id", id).select()
 
-        if (!error && data) {
-          set((state) => ({
-            projects: state.projects.map((p) => (p.id === id ? data[0] : p)),
-          }))
+          if (!error && data) {
+            const transformedData = transformData(data, "projects")
+            set((state) => ({
+              projects: state.projects.map((p) => (p.id === id ? transformedData[0] : p)),
+              lastUpdated: Date.now(),
+            }))
+          }
+        } catch (error) {
+          throw error
         }
       },
 
       deleteProject: async (id) => {
-        const { error } = await supabase.from("projects").delete().eq("id", id)
+        try {
+          const { error } = await supabase.from("projects").delete().eq("id", id)
 
-        if (!error) {
-          set((state) => ({
-            projects: state.projects.filter((p) => p.id !== id),
-          }))
+          if (!error) {
+            set((state) => ({
+              projects: state.projects.filter((p) => p.id !== id),
+              lastUpdated: Date.now(),
+            }))
+          }
+        } catch (error) {
+          throw error
         }
       },
 
       // Skills
       addSkill: async (skill) => {
-        const { data, error } = await supabase
-          .from("skills")
-          .insert([{ ...skill, created_at: new Date().toISOString() }])
-          .select()
+        try {
+          const { data, error } = await supabase.from("skills").insert([skill]).select()
 
-        if (!error && data) {
-          set((state) => ({ skills: [data[0], ...state.skills] }))
+          if (!error && data) {
+            const transformedData = transformData(data, "skills")
+            set((state) => ({
+              skills: [transformedData[0], ...state.skills],
+              lastUpdated: Date.now(),
+            }))
+          }
+        } catch (error) {
+          throw error
         }
       },
 
       updateSkill: async (id, skill) => {
-        const { data, error } = await supabase.from("skills").update(skill).eq("id", id).select()
+        try {
+          const { data, error } = await supabase.from("skills").update(skill).eq("id", id).select()
 
-        if (!error && data) {
-          set((state) => ({
-            skills: state.skills.map((s) => (s.id === id ? data[0] : s)),
-          }))
+          if (!error && data) {
+            const transformedData = transformData(data, "skills")
+            set((state) => ({
+              skills: state.skills.map((s) => (s.id === id ? transformedData[0] : s)),
+              lastUpdated: Date.now(),
+            }))
+          }
+        } catch (error) {
+          throw error
         }
       },
 
       deleteSkill: async (id) => {
-        const { error } = await supabase.from("skills").delete().eq("id", id)
+        try {
+          const { error } = await supabase.from("skills").delete().eq("id", id)
 
-        if (!error) {
-          set((state) => ({
-            skills: state.skills.filter((s) => s.id !== id),
-          }))
+          if (!error) {
+            set((state) => ({
+              skills: state.skills.filter((s) => s.id !== id),
+              lastUpdated: Date.now(),
+            }))
+          }
+        } catch (error) {
+          throw error
         }
       },
 
       // Certificates
       addCertificate: async (certificate) => {
-        const { data, error } = await supabase
-          .from("certificates")
-          .insert([{ ...certificate, created_at: new Date().toISOString() }])
-          .select()
+        try {
+          const dataToInsert = {
+            ...certificate,
+            credential_id: certificate.credentialId,
+            verify_url: certificate.verifyUrl,
+          }
 
-        if (!error && data) {
-          set((state) => ({ certificates: [data[0], ...state.certificates] }))
+          const { data, error } = await supabase.from("certificates").insert([dataToInsert]).select()
+
+          if (!error && data) {
+            const transformedData = transformData(data, "certificates")
+            set((state) => ({
+              certificates: [transformedData[0], ...state.certificates],
+              lastUpdated: Date.now(),
+            }))
+          }
+        } catch (error) {
+          throw error
         }
       },
 
       updateCertificate: async (id, certificate) => {
-        const { data, error } = await supabase.from("certificates").update(certificate).eq("id", id).select()
+        try {
+          const dataToUpdate = {
+            ...certificate,
+            credential_id: certificate.credentialId,
+            verify_url: certificate.verifyUrl,
+          }
 
-        if (!error && data) {
-          set((state) => ({
-            certificates: state.certificates.map((c) => (c.id === id ? data[0] : c)),
-          }))
+          const { data, error } = await supabase.from("certificates").update(dataToUpdate).eq("id", id).select()
+
+          if (!error && data) {
+            const transformedData = transformData(data, "certificates")
+            set((state) => ({
+              certificates: state.certificates.map((c) => (c.id === id ? transformedData[0] : c)),
+              lastUpdated: Date.now(),
+            }))
+          }
+        } catch (error) {
+          throw error
         }
       },
 
       deleteCertificate: async (id) => {
-        const { error } = await supabase.from("certificates").delete().eq("id", id)
+        try {
+          const { error } = await supabase.from("certificates").delete().eq("id", id)
 
-        if (!error) {
-          set((state) => ({
-            certificates: state.certificates.filter((c) => c.id !== id),
-          }))
+          if (!error) {
+            set((state) => ({
+              certificates: state.certificates.filter((c) => c.id !== id),
+              lastUpdated: Date.now(),
+            }))
+          }
+        } catch (error) {
+          throw error
         }
       },
 
       // Blogs
       addBlog: async (blog) => {
-        const { data, error } = await supabase
-          .from("blogs")
-          .insert([{ ...blog, created_at: new Date().toISOString() }])
-          .select()
+        try {
+          const dataToInsert = {
+            ...blog,
+            read_time: blog.readTime,
+          }
 
-        if (!error && data) {
-          set((state) => ({ blogs: [data[0], ...state.blogs] }))
+          const { data, error } = await supabase.from("blogs").insert([dataToInsert]).select()
+
+          if (!error && data) {
+            const transformedData = transformData(data, "blogs")
+            set((state) => ({
+              blogs: [transformedData[0], ...state.blogs],
+              lastUpdated: Date.now(),
+            }))
+          }
+        } catch (error) {
+          throw error
         }
       },
 
       updateBlog: async (id, blog) => {
-        const { data, error } = await supabase.from("blogs").update(blog).eq("id", id).select()
+        try {
+          const dataToUpdate = {
+            ...blog,
+            read_time: blog.readTime,
+          }
 
-        if (!error && data) {
-          set((state) => ({
-            blogs: state.blogs.map((b) => (b.id === id ? data[0] : b)),
-          }))
+          const { data, error } = await supabase.from("blogs").update(dataToUpdate).eq("id", id).select()
+
+          if (!error && data) {
+            const transformedData = transformData(data, "blogs")
+            set((state) => ({
+              blogs: state.blogs.map((b) => (b.id === id ? transformedData[0] : b)),
+              lastUpdated: Date.now(),
+            }))
+          }
+        } catch (error) {
+          throw error
         }
       },
 
       deleteBlog: async (id) => {
-        const { error } = await supabase.from("blogs").delete().eq("id", id)
+        try {
+          const { error } = await supabase.from("blogs").delete().eq("id", id)
 
-        if (!error) {
-          set((state) => ({
-            blogs: state.blogs.filter((b) => b.id !== id),
-          }))
+          if (!error) {
+            set((state) => ({
+              blogs: state.blogs.filter((b) => b.id !== id),
+              lastUpdated: Date.now(),
+            }))
+          }
+        } catch (error) {
+          throw error
         }
       },
 
       // Experiences
       addExperience: async (experience) => {
-        const { data, error } = await supabase
-          .from("experiences")
-          .insert([{ ...experience, created_at: new Date().toISOString() }])
-          .select()
+        try {
+          const { data, error } = await supabase.from("experiences").insert([experience]).select()
 
-        if (!error && data) {
-          set((state) => ({ experiences: [data[0], ...state.experiences] }))
+          if (!error && data) {
+            const transformedData = transformData(data, "experiences")
+            set((state) => ({
+              experiences: [transformedData[0], ...state.experiences],
+              lastUpdated: Date.now(),
+            }))
+          }
+        } catch (error) {
+          throw error
         }
       },
 
       updateExperience: async (id, experience) => {
-        const { data, error } = await supabase.from("experiences").update(experience).eq("id", id).select()
+        try {
+          const { data, error } = await supabase.from("experiences").update(experience).eq("id", id).select()
 
-        if (!error && data) {
-          set((state) => ({
-            experiences: state.experiences.map((e) => (e.id === id ? data[0] : e)),
-          }))
+          if (!error && data) {
+            const transformedData = transformData(data, "experiences")
+            set((state) => ({
+              experiences: state.experiences.map((e) => (e.id === id ? transformedData[0] : e)),
+              lastUpdated: Date.now(),
+            }))
+          }
+        } catch (error) {
+          throw error
         }
       },
 
       deleteExperience: async (id) => {
-        const { error } = await supabase.from("experiences").delete().eq("id", id)
+        try {
+          const { error } = await supabase.from("experiences").delete().eq("id", id)
 
-        if (!error) {
-          set((state) => ({
-            experiences: state.experiences.filter((e) => e.id !== id),
-          }))
+          if (!error) {
+            set((state) => ({
+              experiences: state.experiences.filter((e) => e.id !== id),
+              lastUpdated: Date.now(),
+            }))
+          }
+        } catch (error) {
+          throw error
         }
       },
     }),
     {
       name: "portfolio-store",
+      partialize: (state) => ({
+        projects: state.projects,
+        skills: state.skills,
+        certificates: state.certificates,
+        blogs: state.blogs,
+        experiences: state.experiences,
+        resume: state.resume,
+        lastUpdated: state.lastUpdated,
+        isInitialized: state.isInitialized,
+      }),
     },
   ),
 )
