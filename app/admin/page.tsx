@@ -1,69 +1,75 @@
 "use client"
 
-import { useEffect } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { AdminNavigation } from "@/components/admin/admin-navigation"
 import { AdminDashboard } from "@/components/admin/admin-dashboard"
-import { useAuth } from "@/lib/auth"
 import { useStore } from "@/lib/store"
-import { useState } from "react"
+import { useAuth } from "@/lib/auth"
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("dashboard")
   const { isAuthenticated } = useAuth()
-  const { fetchData, error, clearError, isLoading } = useStore()
+  const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
+  const { fetchData } = useStore()
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.push("/admin/login")
+    const verifyAuth = async () => {
+      try {
+        if (!isAuthenticated) {
+          router.push("/admin/login")
+          return
+        }
+        // Fetch fresh data when admin loads
+        await fetchData()
+      } catch (error) {
+        console.error("Auth verification failed:", error)
+        router.push("/admin/login")
+      } finally {
+        setIsLoading(false)
+      }
     }
-  }, [isAuthenticated, router])
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchData()
-    }
-  }, [isAuthenticated, fetchData])
+    verifyAuth()
+  }, [isAuthenticated, router, fetchData])
 
-  useEffect(() => {
-    if (error) {
-      console.error("Admin error:", error)
-      // Auto-clear error after 5 seconds
-      const timer = setTimeout(() => {
-        clearError()
-      }, 5000)
-      return () => clearTimeout(timer)
-    }
-  }, [error, clearError])
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-center">
+          <div className="loading-spinner w-8 h-8 mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading admin panel...</p>
+        </div>
+      </div>
+    )
+  }
 
   if (!isAuthenticated) {
     return null
   }
 
   return (
-    <div className="min-h-screen bg-black relative">
-      <AdminNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
-      <div className="pt-16">
-        <AdminDashboard activeTab={activeTab} setActiveTab={setActiveTab} />
+    <div className="min-h-screen bg-black text-white">
+      {/* Background Effects */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 left-20 w-32 h-32 bg-gradient-to-r from-red-500/5 to-pink-500/5 rounded-full blur-xl animate-pulse"></div>
+        <div
+          className="absolute bottom-20 right-20 w-40 h-40 bg-gradient-to-r from-blue-500/5 to-purple-500/5 rounded-full blur-xl animate-pulse"
+          style={{ animationDelay: "1s" }}
+        ></div>
+        <div
+          className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-gradient-to-r from-purple-500/3 to-cyan-500/3 rounded-full blur-3xl animate-pulse"
+          style={{ animationDelay: "2s" }}
+        ></div>
       </div>
 
-      {/* Loading Overlay */}
-      {isLoading && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="loading-spinner"></div>
-        </div>
-      )}
-
-      {/* Error Toast */}
-      {error && (
-        <div className="fixed bottom-4 right-4 bg-red-500 text-white p-4 rounded-lg shadow-lg z-50 animate-fadeInUp">
-          <p className="text-sm">{error}</p>
-          <button onClick={clearError} className="absolute top-1 right-2 text-white hover:text-gray-200">
-            ×
-          </button>
-        </div>
-      )}
+      <div className="flex relative z-10">
+        <AdminNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
+        <main className="flex-1 ml-64">
+          <AdminDashboard activeTab={activeTab} setActiveTab={setActiveTab} />
+        </main>
+      </div>
     </div>
   )
 }

@@ -2,290 +2,301 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { Save, Download, Upload, FileText } from "lucide-react"
-import { useStore } from "@/lib/store"
+import { Save, Upload, Download, User, Mail, Phone, MapPin, Globe, Github, Linkedin } from "lucide-react"
+import { useStore, type Resume } from "@/lib/store"
 
 export function ResumeManager() {
-  const { resume, updateResume } = useStore()
-  const [formData, setFormData] = useState({
+  const { resume, updateResume, isLoading, error } = useStore()
+  const [formData, setFormData] = useState<Partial<Resume>>({
     personalInfo: {
-      fullName: resume?.personalInfo?.fullName || "Dhyey Visodiya",
-      email: resume?.personalInfo?.email || "visodiyadhyey@gmail.com",
-      phone: resume?.personalInfo?.phone || "+91 9913191735",
-      location: resume?.personalInfo?.location || "Rajkot, Gujarat",
-      website: resume?.personalInfo?.website || "https://dhyeyvisodiya.dev",
-      linkedin: resume?.personalInfo?.linkedin || "https://linkedin.com/in/dhyey-visodiya",
-      github: resume?.personalInfo?.github || "https://github.com/dhyeyvisodiya",
+      fullName: "",
+      email: "",
+      phone: "",
+      location: "",
+      website: "",
+      linkedin: "",
+      github: "",
     },
-    summary:
-      resume?.summary ||
-      "Passionate software engineer with expertise in full-stack development, mobile applications, and modern web technologies.",
-    resumeUrl: resume?.resumeUrl || "",
+    summary: "",
+    resumeUrl: "",
   })
-  const [isLoading, setIsLoading] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+
+  useEffect(() => {
+    if (resume) {
+      setFormData(resume)
+    }
+  }, [resume])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
+    setIsSaving(true)
 
     try {
       await updateResume(formData)
     } catch (error) {
-      // Error handling without console.log
+      console.error("Failed to update resume:", error)
     } finally {
-      setIsLoading(false)
+      setIsSaving(false)
     }
   }
 
   const handlePersonalInfoChange = (field: string, value: string) => {
-    setFormData({
-      ...formData,
+    setFormData((prev) => ({
+      ...prev,
       personalInfo: {
-        ...formData.personalInfo,
+        ...prev.personalInfo!,
         [field]: value,
       },
-    })
+    }))
+  }
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      // In a real app, you would upload to a file storage service
+      const fileUrl = URL.createObjectURL(file)
+      setFormData((prev) => ({
+        ...prev,
+        resumeUrl: fileUrl,
+      }))
+    }
   }
 
   const handleDownloadResume = () => {
     if (formData.resumeUrl) {
-      window.open(formData.resumeUrl, "_blank")
+      const link = document.createElement("a")
+      link.href = formData.resumeUrl
+      link.download = `${formData.personalInfo?.fullName || "Resume"}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
     }
   }
 
   return (
     <div className="space-y-8">
-      <div className="fade-in-up">
-        <h1 className="text-3xl font-bold text-white gradient-text">Resume Manager</h1>
-        <p className="text-gray-400">Manage your resume and personal information</p>
+      <div className="flex justify-between items-center fade-in-up">
+        <div>
+          <h1 className="text-3xl font-bold text-white gradient-text">Resume Manager</h1>
+          <p className="text-gray-400">Manage your personal information and resume</p>
+        </div>
+        {formData.resumeUrl && (
+          <Button
+            onClick={handleDownloadResume}
+            className="bg-green-600 hover:bg-green-700 text-white transition-all duration-300"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Download Resume
+          </Button>
+        )}
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-8">
+      {error && (
+        <Card className="bg-red-500/10 border-red-500/20 fade-in-up">
+          <CardContent className="p-4">
+            <p className="text-red-400 text-sm">{error}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-8">
         {/* Personal Information */}
-        <Card className="bg-gray-800/50 border-gray-700 fade-in-left">
+        <Card className="bg-gray-800/50 border-gray-700 fade-in-up">
           <CardHeader>
-            <CardTitle className="text-white">Personal Information</CardTitle>
-            <CardDescription className="text-gray-400">Update your contact details and links</CardDescription>
+            <CardTitle className="text-white flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Personal Information
+            </CardTitle>
+            <CardDescription className="text-gray-400">
+              Your basic contact information and professional links
+            </CardDescription>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="fullName" className="text-gray-300">
-                    Full Name
-                  </Label>
-                  <Input
-                    id="fullName"
-                    value={formData.personalInfo.fullName}
-                    onChange={(e) => handlePersonalInfoChange("fullName", e.target.value)}
-                    className="bg-gray-700 border-gray-600 text-white"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="email" className="text-gray-300">
-                    Email
-                  </Label>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="fullName" className="text-gray-300">
+                  Full Name
+                </Label>
+                <Input
+                  id="fullName"
+                  value={formData.personalInfo?.fullName || ""}
+                  onChange={(e) => handlePersonalInfoChange("fullName", e.target.value)}
+                  className="bg-gray-700/50 border-gray-600 text-white"
+                  placeholder="John Doe"
+                />
+              </div>
+              <div>
+                <Label htmlFor="email" className="text-gray-300">
+                  Email
+                </Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
                     id="email"
                     type="email"
-                    value={formData.personalInfo.email}
+                    value={formData.personalInfo?.email || ""}
                     onChange={(e) => handlePersonalInfoChange("email", e.target.value)}
-                    className="bg-gray-700 border-gray-600 text-white"
-                    required
+                    className="bg-gray-700/50 border-gray-600 text-white pl-10"
+                    placeholder="john@example.com"
                   />
                 </div>
               </div>
+            </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="phone" className="text-gray-300">
-                    Phone
-                  </Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="phone" className="text-gray-300">
+                  Phone
+                </Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
                     id="phone"
-                    value={formData.personalInfo.phone}
+                    value={formData.personalInfo?.phone || ""}
                     onChange={(e) => handlePersonalInfoChange("phone", e.target.value)}
-                    className="bg-gray-700 border-gray-600 text-white"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="location" className="text-gray-300">
-                    Location
-                  </Label>
-                  <Input
-                    id="location"
-                    value={formData.personalInfo.location}
-                    onChange={(e) => handlePersonalInfoChange("location", e.target.value)}
-                    className="bg-gray-700 border-gray-600 text-white"
-                    required
+                    className="bg-gray-700/50 border-gray-600 text-white pl-10"
+                    placeholder="+1 (555) 123-4567"
                   />
                 </div>
               </div>
+              <div>
+                <Label htmlFor="location" className="text-gray-300">
+                  Location
+                </Label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="location"
+                    value={formData.personalInfo?.location || ""}
+                    onChange={(e) => handlePersonalInfoChange("location", e.target.value)}
+                    className="bg-gray-700/50 border-gray-600 text-white pl-10"
+                    placeholder="New York, NY"
+                  />
+                </div>
+              </div>
+            </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <Label htmlFor="website" className="text-gray-300">
                   Website
                 </Label>
-                <Input
-                  id="website"
-                  value={formData.personalInfo.website}
-                  onChange={(e) => handlePersonalInfoChange("website", e.target.value)}
-                  className="bg-gray-700 border-gray-600 text-white"
-                />
+                <div className="relative">
+                  <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="website"
+                    value={formData.personalInfo?.website || ""}
+                    onChange={(e) => handlePersonalInfoChange("website", e.target.value)}
+                    className="bg-gray-700/50 border-gray-600 text-white pl-10"
+                    placeholder="https://johndoe.com"
+                  />
+                </div>
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="linkedin" className="text-gray-300">
-                    LinkedIn
-                  </Label>
+              <div>
+                <Label htmlFor="linkedin" className="text-gray-300">
+                  LinkedIn
+                </Label>
+                <div className="relative">
+                  <Linkedin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
                     id="linkedin"
-                    value={formData.personalInfo.linkedin}
+                    value={formData.personalInfo?.linkedin || ""}
                     onChange={(e) => handlePersonalInfoChange("linkedin", e.target.value)}
-                    className="bg-gray-700 border-gray-600 text-white"
+                    className="bg-gray-700/50 border-gray-600 text-white pl-10"
+                    placeholder="linkedin.com/in/johndoe"
                   />
                 </div>
-                <div>
-                  <Label htmlFor="github" className="text-gray-300">
-                    GitHub
-                  </Label>
+              </div>
+              <div>
+                <Label htmlFor="github" className="text-gray-300">
+                  GitHub
+                </Label>
+                <div className="relative">
+                  <Github className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
                     id="github"
-                    value={formData.personalInfo.github}
+                    value={formData.personalInfo?.github || ""}
                     onChange={(e) => handlePersonalInfoChange("github", e.target.value)}
-                    className="bg-gray-700 border-gray-600 text-white"
+                    className="bg-gray-700/50 border-gray-600 text-white pl-10"
+                    placeholder="github.com/johndoe"
                   />
                 </div>
               </div>
-
-              <div>
-                <Label htmlFor="summary" className="text-gray-300">
-                  Professional Summary
-                </Label>
-                <Textarea
-                  id="summary"
-                  value={formData.summary}
-                  onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
-                  className="bg-gray-700 border-gray-600 text-white"
-                  rows={4}
-                  required
-                />
-              </div>
-
-              <Button type="submit" className="w-full gradient-bg text-white" disabled={isLoading}>
-                <Save className="h-4 w-4 mr-2" />
-                {isLoading ? "Saving..." : "Save Changes"}
-              </Button>
-            </form>
+            </div>
           </CardContent>
         </Card>
 
-        {/* Resume File Management */}
-        <Card className="bg-gray-800/50 border-gray-700 fade-in-right">
+        {/* Professional Summary */}
+        <Card className="bg-gray-800/50 border-gray-700 fade-in-up">
+          <CardHeader>
+            <CardTitle className="text-white">Professional Summary</CardTitle>
+            <CardDescription className="text-gray-400">
+              A brief overview of your professional background and key strengths
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Textarea
+              value={formData.summary || ""}
+              onChange={(e) => setFormData((prev) => ({ ...prev, summary: e.target.value }))}
+              className="bg-gray-700/50 border-gray-600 text-white min-h-[120px]"
+              placeholder="Write a compelling professional summary that highlights your key skills, experience, and career objectives..."
+            />
+          </CardContent>
+        </Card>
+
+        {/* Resume File Upload */}
+        <Card className="bg-gray-800/50 border-gray-700 fade-in-up">
           <CardHeader>
             <CardTitle className="text-white">Resume File</CardTitle>
-            <CardDescription className="text-gray-400">Upload and manage your resume PDF</CardDescription>
+            <CardDescription className="text-gray-400">Upload your resume PDF file for download</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div>
-              <Label htmlFor="resumeUrl" className="text-gray-300">
-                Resume URL
-              </Label>
-              <Input
-                id="resumeUrl"
-                value={formData.resumeUrl}
-                onChange={(e) => setFormData({ ...formData, resumeUrl: e.target.value })}
-                className="bg-gray-700 border-gray-600 text-white"
-                placeholder="https://example.com/resume.pdf"
-              />
-            </div>
-
-            <div className="flex flex-col gap-4">
-              <Button
-                variant="outline"
-                className="border-gray-600 text-gray-300 bg-transparent hover:bg-gray-700"
-                onClick={() => document.getElementById("resume-upload")?.click()}
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                Upload Resume
-              </Button>
-              <input
-                id="resume-upload"
-                type="file"
-                accept=".pdf,.doc,.docx"
-                className="hidden"
-                onChange={(e) => {
-                  // Handle file upload logic here
-                  const file = e.target.files?.[0]
-                  if (file) {
-                    // In a real implementation, you would upload to a storage service
-                    // For now, we'll just show the filename
-                    setFormData({ ...formData, resumeUrl: file.name })
-                  }
-                }}
-              />
-
-              {formData.resumeUrl && (
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <Input
+                  type="file"
+                  accept=".pdf,.doc,.docx"
+                  onChange={handleFileUpload}
+                  className="bg-gray-700/50 border-gray-600 text-white file:bg-gray-600 file:text-white file:border-0 file:rounded file:px-4 file:py-2"
+                />
                 <Button
+                  type="button"
                   variant="outline"
-                  className="border-green-600 text-green-400 bg-transparent hover:bg-green-500/10"
-                  onClick={handleDownloadResume}
+                  className="border-gray-600 text-gray-300 hover:bg-gray-700 bg-transparent"
                 >
-                  <Download className="h-4 w-4 mr-2" />
-                  Download Resume
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload
                 </Button>
-              )}
-            </div>
-
-            <div className="p-4 bg-gray-700/30 rounded-lg">
-              <div className="flex items-center gap-3 mb-2">
-                <FileText className="h-5 w-5 text-blue-400" />
-                <span className="text-white font-medium">Resume Preview</span>
               </div>
-              <p className="text-gray-400 text-sm">
-                {formData.resumeUrl ? "Resume file available" : "No resume uploaded"}
-              </p>
+              {formData.resumeUrl && (
+                <div className="flex items-center gap-2 text-green-400 text-sm">
+                  <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                  Resume file uploaded successfully
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
-      </div>
 
-      {/* Resume Statistics */}
-      <Card className="bg-gray-800/50 border-gray-700 fade-in-up">
-        <CardHeader>
-          <CardTitle className="text-white">Resume Statistics</CardTitle>
-          <CardDescription className="text-gray-400">Track your resume performance</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="text-center p-4 bg-gradient-to-r from-red-500/10 to-blue-500/10 rounded-lg">
-              <div className="text-2xl font-bold text-red-400 mb-1">0</div>
-              <div className="text-sm text-gray-400">Downloads</div>
-            </div>
-            <div className="text-center p-4 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-lg">
-              <div className="text-2xl font-bold text-blue-400 mb-1">0</div>
-              <div className="text-sm text-gray-400">Views</div>
-            </div>
-            <div className="text-center p-4 bg-gradient-to-r from-purple-500/10 to-green-500/10 rounded-lg">
-              <div className="text-2xl font-bold text-purple-400 mb-1">0</div>
-              <div className="text-sm text-gray-400">Shares</div>
-            </div>
-            <div className="text-center p-4 bg-gradient-to-r from-green-500/10 to-red-500/10 rounded-lg">
-              <div className="text-2xl font-bold text-green-400 mb-1">100%</div>
-              <div className="text-sm text-gray-400">Completion</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        {/* Save Button */}
+        <div className="flex justify-end">
+          <Button
+            type="submit"
+            disabled={isSaving || isLoading}
+            className="gradient-bg text-white px-8 py-3 hover:scale-105 transition-transform duration-300"
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {isSaving ? "Saving..." : "Save Resume"}
+          </Button>
+        </div>
+      </form>
     </div>
   )
 }

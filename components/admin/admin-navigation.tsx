@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Menu, X, Home, BarChart3, FolderOpen, Award, BookOpen, FileText, Settings } from "lucide-react"
+import { LayoutDashboard, FolderOpen, Code, Award, BookOpen, Briefcase, FileText, LogOut, User } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 interface AdminNavigationProps {
   activeTab: string
@@ -10,100 +10,82 @@ interface AdminNavigationProps {
 }
 
 export function AdminNavigation({ activeTab, setActiveTab }: AdminNavigationProps) {
-  const [isOpen, setIsOpen] = useState(false)
+  const router = useRouter()
+
+  const handleLogout = () => {
+    localStorage.removeItem("admin_token")
+    router.push("/admin/login")
+  }
+
+  const handleHomeRedirect = () => {
+    router.push("/")
+  }
 
   const navItems = [
-    { id: "dashboard", label: "Dashboard", icon: BarChart3 },
+    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "projects", label: "Projects", icon: FolderOpen },
-    { id: "skills", label: "Skills", icon: Settings },
+    { id: "skills", label: "Skills", icon: Code },
     { id: "certificates", label: "Certificates", icon: Award },
     { id: "blogs", label: "Blogs", icon: BookOpen },
-    { id: "experience", label: "Experience", icon: FileText },
+    { id: "experience", label: "Experience", icon: Briefcase },
     { id: "resume", label: "Resume", icon: FileText },
   ]
 
   return (
-    <nav className="fixed top-0 w-full z-50 bg-black/90 backdrop-blur-md border-b border-gray-800 slide-in-down">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          <div className="flex items-center space-x-4">
-            <span className="text-2xl font-bold text-red-500 gradient-text">{"<DV/>"}</span>
-            <span className="text-gray-400">Admin Panel</span>
-          </div>
+    <nav className="fixed left-0 top-0 h-full w-64 bg-gray-900/50 backdrop-blur-md border-r border-gray-800 z-50">
+      <div className="p-6">
+        {/* Header */}
+        <div className="mb-8">
+          <button
+            onClick={handleHomeRedirect}
+            className="text-2xl font-bold text-red-500 hover:scale-110 transition-transform duration-300"
+          >
+            {"<DV/>"} Admin
+          </button>
+          <p className="text-gray-400 text-sm mt-2">Portfolio Management</p>
+        </div>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:block">
-            <div className="ml-10 flex items-baseline space-x-4">
-              {navItems.map((item) => {
-                const Icon = item.icon
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => setActiveTab(item.id)}
-                    className={`flex items-center px-3 py-2 text-sm font-medium transition-all duration-300 rounded-lg ${
-                      activeTab === item.id
-                        ? "text-red-400 bg-red-500/10 border border-red-500/20"
-                        : "text-gray-300 hover:text-white hover:bg-gray-800"
-                    }`}
-                  >
-                    <Icon className="h-4 w-4 mr-2" />
-                    {item.label}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-4">
+        {/* Navigation Items */}
+        <div className="space-y-2 mb-8">
+          {navItems.map((item) => (
             <Button
-              variant="outline"
-              size="sm"
-              className="border-gray-600 text-gray-300 bg-transparent hover:bg-gray-800 transition-all duration-300"
-              asChild
+              key={item.id}
+              variant={activeTab === item.id ? "default" : "ghost"}
+              className={`w-full justify-start text-left transition-all duration-300 ${
+                activeTab === item.id
+                  ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg"
+                  : "text-gray-300 hover:text-white hover:bg-gray-800"
+              }`}
+              onClick={() => setActiveTab(item.id)}
             >
-              <a href="/">
-                <Home className="h-4 w-4 mr-2" />
-                View Site
-              </a>
+              <item.icon className="h-5 w-5 mr-3" />
+              {item.label}
             </Button>
+          ))}
+        </div>
 
-            {/* Mobile menu button */}
-            <div className="md:hidden">
-              <Button variant="ghost" size="icon" onClick={() => setIsOpen(!isOpen)}>
-                {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              </Button>
+        {/* User Section */}
+        <div className="border-t border-gray-800 pt-6">
+          <div className="flex items-center gap-3 mb-4 p-3 bg-gray-800/50 rounded-lg">
+            <div className="w-8 h-8 bg-gradient-to-r from-red-500 to-blue-500 rounded-full flex items-center justify-center">
+              <User className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <p className="text-white text-sm font-medium">Admin User</p>
+              <p className="text-gray-400 text-xs">Administrator</p>
             </div>
           </div>
+
+          <Button
+            variant="outline"
+            className="w-full border-gray-600 text-gray-300 hover:bg-red-500/10 hover:border-red-500 hover:text-red-400 transition-all duration-300 bg-transparent"
+            onClick={handleLogout}
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Logout
+          </Button>
         </div>
       </div>
-
-      {/* Mobile Navigation */}
-      {isOpen && (
-        <div className="md:hidden fade-in-up">
-          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-black border-b border-gray-800">
-            {navItems.map((item) => {
-              const Icon = item.icon
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setActiveTab(item.id)
-                    setIsOpen(false)
-                  }}
-                  className={`flex items-center w-full px-3 py-2 text-base font-medium transition-colors rounded-lg ${
-                    activeTab === item.id
-                      ? "text-red-400 bg-red-500/10"
-                      : "text-gray-300 hover:text-white hover:bg-gray-800"
-                  }`}
-                >
-                  <Icon className="h-4 w-4 mr-2" />
-                  {item.label}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      )}
     </nav>
   )
 }
